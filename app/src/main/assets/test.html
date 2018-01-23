@@ -135,7 +135,7 @@ function callAsync() {
       console.error(ret.error);
       return;
     }
-    alert(ret.result);
+    alert(JSON.stringify(ret));
   });
 }
 
@@ -149,7 +149,7 @@ function callNoArgAsync() {
       console.error(ret.error);
       return;
     }
-    alert(ret.result);
+    alert(JSON.stringify(ret));
   });
 }
 

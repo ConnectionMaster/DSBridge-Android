@@ -15,32 +15,30 @@ import wendu.dsbridge.CompletionHandler;
 public class JsApi{
     @JavascriptInterface
     public String testSync(JSONObject jsonObject) throws JSONException {
-        return jsonObject.getString("msg") + "［sync call］";
+        return jsonObject.toString();
     }
 
     //@JavascriptInterface
     //此方法没有@JavascriptInterface标注将不会被调用
     public String testNever(JSONObject jsonObject) throws JSONException {
-        return jsonObject.getString("msg") + "[never call]";
+        return jsonObject.toString();
     }
 
     @JavascriptInterface
     public String testNoArgSync(JSONObject jsonObject) throws JSONException {
-        return "testNoArgSyn called [sync call]";
+        return new JSONObject().put("msg", "testNoArgSync").toString();
     }
 
     @JavascriptInterface
     public void testNoArgAsync(JSONObject jsonObject, CompletionHandler handler) throws JSONException {
         JSONObject result = new JSONObject();
-        result.put("result", "testNoArgAsync called [async call]");
+        result.put("msg", "testNoArgAsync");
         handler.complete(result.toString());
     }
 
     @JavascriptInterface
     public void testAsync(JSONObject jsonObject, CompletionHandler handler) throws JSONException {
-        JSONObject result = new JSONObject();
-        result.put("result", jsonObject.getString("msg") + " [async call]");
-        handler.complete(result.toString());
+        handler.complete(jsonObject.toString());
     }
 
     @JavascriptInterface

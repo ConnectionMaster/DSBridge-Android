@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.Keep;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AlertDialog;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -34,6 +35,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -80,6 +82,7 @@ public class DWebView extends WebView {
             }
         }
     }
+
     class RequestInfo {
         String url;
         Map<String, String> headers;
@@ -180,20 +183,18 @@ public class DWebView extends WebView {
 
                                 // FIXME currently, `retValue` should be a json string.
                                 // a better way is, make it a serializable object, and stringify it inside of `complete`, our developers should be glad to see it
-                                private void complete(String retValue, boolean complete) {
+                                private void complete(@Nullable String retValue, boolean complete) {
                                     try {
-                                        if (retValue == null) retValue = "";
-                                        // FIXME special process for no return value, we could make it more JAVA
-                                        if (retValue == "") {
-                                            JSONObject result = new JSONObject();
-                                            result.put("result", "");
-                                            retValue = result.toString();
+                                        if (retValue == null || !JsonUtil.isValidJSON(retValue)) {
+                                            JSONObject object = new JSONObject();
+                                            object.put("error", retValue == null ? "null string json" : "(" + retValue + ")" + " is not json valid json format");
+                                            retValue = object.toString();
                                         }
+
                                         String script = String.format(
                                                 "%s.invokeCallback && %s.invokeCallback(%s, %s, %s);",
                                                 BRIDGE_NAME, BRIDGE_NAME, cid, retValue, Boolean.toString(complete)
                                         );
-                                        Log.d("complete script", script);
                                         evaluateJavascript(script);
                                     } catch (Exception e) {
                                         e.printStackTrace();
@@ -214,6 +215,14 @@ public class DWebView extends WebView {
                         Log.e("SynWebView", error);
                     }
                 } catch (Exception e) {
+
+                    //TODO: @Chun, please add the javascript method to return error message to your side, if android fails on bridging method call.
+                    JSONObject errMsg = new JSONObject();
+                    try {
+                        errMsg.put("error", e.getLocalizedMessage());
+                    } catch (JSONException e1) {
+                        e1.printStackTrace();
+                    }
                     evaluateJavascript(String.format("alert('ERROR! \\nCall failed：Function does not exist or parameter is invalid［%s］')", e.getMessage()));
                     e.printStackTrace();
                 }
