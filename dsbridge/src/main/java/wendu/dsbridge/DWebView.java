@@ -53,6 +53,7 @@ import java.util.Map;
 public class DWebView extends WebView {
     private static final String BRIDGE_NAME = "_dsbridge";
     private Object jsb;
+    private CallbackHandler javascriptBridgeInitedListener;
     private String APP_CACAHE_DIRNAME;
     int callID = 0;
     private static final int EXEC_SCRIPT=1;
@@ -141,7 +142,6 @@ public class DWebView extends WebView {
                     boolean asyn = false;
                     JSONObject arg = new JSONObject(args);
                     String callbackId = "";
-                    Log.e("SpringDebug @1", args);
                     try {
                         callbackId = arg.getString("_callbackId");
                         arg.remove("_callbackId");
@@ -151,8 +151,6 @@ public class DWebView extends WebView {
                     } catch (Exception e) {
                         method = cls.getDeclaredMethod(methodName, new Class[]{JSONObject.class});
                     }
-
-                    Log.e("SpringDebug @2 %s", asyn ? "true" : "false");
 
                     if (method == null) {
                         error = "ERROR! \n Not find method \"" + methodName + "\" implementation @chun! ";
@@ -167,7 +165,6 @@ public class DWebView extends WebView {
                         if (asyn) {
                             final String cid = callbackId;
                             ret = method.invoke(jsb, arg, new CompletionHandler() {
-
                                 @Override
                                 public void complete(String retValue) {
                                     complete(retValue, true);
@@ -232,6 +229,14 @@ public class DWebView extends WebView {
                 if (handler != null) {
                     handler.onValue(value);
                     handlerMap.remove(id);
+                }
+            }
+
+            @Keep
+            @JavascriptInterface
+            public void init() {
+                if (javascriptBridgeInitedListener != null) {
+                    javascriptBridgeInitedListener.execute();
                 }
             }
         }, BRIDGE_NAME);
@@ -659,5 +664,10 @@ public class DWebView extends WebView {
 
     public void setJavascriptInterface(Object object) {
         jsb = object;
+    }
+
+
+    public void setJavascriptBridgeInitedListener(final CallbackHandler handler) {
+        javascriptBridgeInitedListener = handler;
     }
 }

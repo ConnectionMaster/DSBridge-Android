@@ -8,6 +8,7 @@ import android.webkit.WebViewClient;
 
 import wendu.dsbridge.DWebView;
 import wendu.dsbridge.OnReturnValue;
+import wendu.dsbridge.CallbackHandler;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -19,11 +20,9 @@ public class MainActivity extends AppCompatActivity {
         webView.setJavascriptInterface(new JsApi());
         webView.clearCache(true);
         webView.loadUrl("file:///android_asset/test.html");
-        webView.setWebViewClient(new WebViewClient(){
+        webView.setJavascriptBridgeInitedListener(new CallbackHandler(){
             @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-
+            public void execute() {
                 webView.callHandler("addValue", new Object[] { 1, "hello" }, new OnReturnValue(){
                     @Override
                     public void onValue(String retValue) {
