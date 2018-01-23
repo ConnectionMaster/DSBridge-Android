@@ -3,12 +3,10 @@ package wendu.jsbdemo;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
+import wendu.dsbridge.CallbackHandler;
 import wendu.dsbridge.DWebView;
 import wendu.dsbridge.OnReturnValue;
-import wendu.dsbridge.CallbackHandler;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -22,7 +20,7 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("file:///android_asset/test.html");
         webView.setJavascriptBridgeInitedListener(new CallbackHandler(){
             @Override
-            public void execute() {
+            public void onJsChannelReady() {
                 webView.callHandler("addValue", new Object[] { 1, "hello" }, new OnReturnValue(){
                     @Override
                     public void onValue(String retValue) {

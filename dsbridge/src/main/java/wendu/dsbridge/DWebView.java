@@ -37,10 +37,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -236,7 +234,7 @@ public class DWebView extends WebView {
             @JavascriptInterface
             public void init() {
                 if (javascriptBridgeInitedListener != null) {
-                    javascriptBridgeInitedListener.execute();
+                    javascriptBridgeInitedListener.onJsChannelReady();
                 }
             }
         }, BRIDGE_NAME);
