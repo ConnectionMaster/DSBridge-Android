@@ -664,7 +664,6 @@ public class DWebView extends WebView {
             handlerMap.put(callID++, handler);
         }
         String script = String.format("(%s.invokeHandler && %s.invokeHandler(\"%s\", %s, %s))", BRIDGE_NAME, BRIDGE_NAME, method, argsString, callIDString);
-        Log.d("callHandler script", script);
         evaluateJavascript(script);
     }
 
