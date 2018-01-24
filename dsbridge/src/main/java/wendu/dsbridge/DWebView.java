@@ -173,7 +173,8 @@ public class DWebView extends WebView {
 
                                 @Override
                                 public void complete() {
-                                    complete("", true);
+
+                                    complete("{}", true);
                                 }
 
                                 @Override

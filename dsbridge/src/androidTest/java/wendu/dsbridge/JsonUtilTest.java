@@ -36,6 +36,9 @@ public class JsonUtilTest {
 
         result =  JsonUtil.isValidJSON("sdfsadfsadfsdf");
         assertFalse(result);
+
+        result =  JsonUtil.isValidJSON("{}");
+        assertTrue(result);
     }
 
 }
