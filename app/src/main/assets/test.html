@@ -48,6 +48,7 @@ function getJsBridge(bridgeName) {
   var jsBridge = {
     callbackMap: {},
     handlerMap: {},
+    errorHandlers: [],
     callHandler: function (name, args, callback) {
       var ret = '';
       if (typeof args == 'function') {
@@ -77,6 +78,21 @@ function getJsBridge(bridgeName) {
         prompt(internalBridgeName + 'init=');
       } else {
         internalBridge.init();
+      }
+    },
+    onError: function (errorHandler) {
+      this.errorHandlers.push(errorHandler);
+    },
+    offError: function (errorHandler) {
+      if (!errorHandler) {
+        this.errorHandlers = [];
+      } else {
+        for (var i = 0, len = this.errorHandlers.length; i < len; i++) {
+          if (errorHandlers[i] === errorHandler) {
+            this.errorHandlers.splice(i, 1);
+            break;
+          }
+        }
       }
     },
   };
@@ -115,6 +131,11 @@ function getJsBridge(bridgeName) {
     }
     callback(result);
   };
+  internalBridge.invokeErrorHandlers = function (error) {
+    jsBridge.errorHandlers.forEach(function (errorHandler) {
+      errorHandler(error);
+    });
+  };
 
   return jsBridge;
 }
@@ -135,7 +156,7 @@ function callAsync() {
       console.error(ret.error);
       return;
     }
-    alert(JSON.stringify(ret));
+    alert(ret.result);
   });
 }
 
@@ -149,7 +170,7 @@ function callNoArgAsync() {
       console.error(ret.error);
       return;
     }
-    alert(JSON.stringify(ret));
+    alert(ret.result);
   });
 }
 
@@ -163,7 +184,9 @@ function callProgress(){
       console.error(ret.error);
       return;
     }
-    document.getElementById('progress').innerText = ret.result;
+    if (typeof ret.result !== 'undefined') {
+      document.getElementById('progress').innerText = ret.result;
+    }
   });
 }
 

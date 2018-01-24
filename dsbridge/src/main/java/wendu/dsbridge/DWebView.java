@@ -154,7 +154,7 @@ public class DWebView extends WebView {
                     }
 
                     if (method == null) {
-                        error = "ERROR! \n Not find method \"" + methodName + "\" implementation @chun! ";
+                        error = "ERROR! \n Not find method \"" + methodName + "\" implementation! ";
                         Log.e("SynWebView", error);
                         evaluateJavascript(String.format("alert(decodeURIComponent(\"%s\"})", error));
                         return "";
@@ -167,13 +167,12 @@ public class DWebView extends WebView {
                             final String cid = callbackId;
                             ret = method.invoke(jsb, arg, new CompletionHandler() {
                                 @Override
-                                public void complete(String retValue) {
+                                public void complete(@Nullable String retValue) {
                                     complete(retValue, true);
                                 }
 
                                 @Override
                                 public void complete() {
-
                                     complete("{}", true);
                                 }
 
@@ -216,15 +215,15 @@ public class DWebView extends WebView {
                         Log.e("SynWebView", error);
                     }
                 } catch (Exception e) {
-
-                    //TODO: @Chun, please add the javascript method to return error message to your side, if android fails on bridging method call.
-                    JSONObject errMsg = new JSONObject();
+                    JSONObject errObject = new JSONObject();
                     try {
-                        errMsg.put("error", e.getLocalizedMessage());
-                    } catch (JSONException e1) {
-                        e1.printStackTrace();
+                        errObject.put("message", e.getMessage());
+                        errObject.put("method", methodName);
+                        errObject.put("args", args);
+                    } catch (JSONException ee) {
+                        ee.printStackTrace();
                     }
-                    evaluateJavascript(String.format("alert('ERROR! \\nCall failed：Function does not exist or parameter is invalid［%s］')", e.getMessage()));
+                    evaluateJavascript(String.format("%s.invokeErrorHandlers && %s.invokeErrorHandlers(%s)", BRIDGE_NAME, BRIDGE_NAME, errObject.toString()));
                     e.printStackTrace();
                 }
                 return "";

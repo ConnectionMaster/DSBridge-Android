@@ -15,30 +15,28 @@ import wendu.dsbridge.CompletionHandler;
 public class JsApi{
     @JavascriptInterface
     public String testSync(JSONObject jsonObject) throws JSONException {
-        return jsonObject.toString();
+        return jsonObject.getString("msg") + "[sync call]";
     }
 
     //@JavascriptInterface
     //此方法没有@JavascriptInterface标注将不会被调用
     public String testNever(JSONObject jsonObject) throws JSONException {
-        return jsonObject.toString();
+        return jsonObject.getString("msg") + "[never call]";
     }
 
     @JavascriptInterface
     public String testNoArgSync(JSONObject jsonObject) throws JSONException {
-        return new JSONObject().put("msg", "testNoArgSync").toString();
+        return "testNoArgSyn called [sync call]";
     }
 
     @JavascriptInterface
     public void testNoArgAsync(JSONObject jsonObject, CompletionHandler handler) throws JSONException {
-        JSONObject result = new JSONObject();
-        result.put("msg", "testNoArgAsync");
-        handler.complete(result.toString());
+        handler.complete(new JSONObject().put("result", "testNoArgAsync called [async call]").toString());
     }
 
     @JavascriptInterface
     public void testAsync(JSONObject jsonObject, CompletionHandler handler) throws JSONException {
-        handler.complete(jsonObject.toString());
+        handler.complete(new JSONObject().put("result", jsonObject.getString("msg") + " [async call]").toString());
     }
 
     @JavascriptInterface
@@ -48,16 +46,14 @@ public class JsApi{
             @Override
             public void onTick(long millisUntilFinished) {
                 // setProgressData can be called many times util complete be called.
-                JSONObject result = new JSONObject();
                 try {
-                    result.put("result", i--);
+                    handler.setProgressData(new JSONObject().put("result", i--).toString());
                 } catch (JSONException e) {}
-                handler.setProgressData(result.toString());
             }
             @Override
             public void onFinish() {
                 // complete the js invocation with data; handler will expire when complete is called
-                handler.complete("");
+                handler.complete();
             }
         }.start();
     }
