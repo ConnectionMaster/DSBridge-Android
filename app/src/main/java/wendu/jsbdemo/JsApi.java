@@ -15,7 +15,7 @@ import wendu.dsbridge.CompletionHandler;
 public class JsApi{
     @JavascriptInterface
     public String testSync(JSONObject jsonObject) throws JSONException {
-        return jsonObject.getString("msg") + "［sync call］";
+        return jsonObject.getString("msg") + "[sync call]";
     }
 
     //@JavascriptInterface
@@ -31,16 +31,12 @@ public class JsApi{
 
     @JavascriptInterface
     public void testNoArgAsync(JSONObject jsonObject, CompletionHandler handler) throws JSONException {
-        JSONObject result = new JSONObject();
-        result.put("result", "testNoArgAsync called [async call]");
-        handler.complete(result.toString());
+        handler.complete(new JSONObject().put("result", "testNoArgAsync called [async call]").toString());
     }
 
     @JavascriptInterface
     public void testAsync(JSONObject jsonObject, CompletionHandler handler) throws JSONException {
-        JSONObject result = new JSONObject();
-        result.put("result", jsonObject.getString("msg") + " [async call]");
-        handler.complete(result.toString());
+        handler.complete(new JSONObject().put("result", jsonObject.getString("msg") + " [async call]").toString());
     }
 
     @JavascriptInterface
@@ -50,16 +46,14 @@ public class JsApi{
             @Override
             public void onTick(long millisUntilFinished) {
                 // setProgressData can be called many times util complete be called.
-                JSONObject result = new JSONObject();
                 try {
-                    result.put("result", i--);
+                    handler.setProgressData(new JSONObject().put("result", i--).toString());
                 } catch (JSONException e) {}
-                handler.setProgressData(result.toString());
             }
             @Override
             public void onFinish() {
                 // complete the js invocation with data; handler will expire when complete is called
-                handler.complete("");
+                handler.complete();
             }
         }.start();
     }

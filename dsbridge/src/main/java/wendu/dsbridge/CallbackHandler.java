@@ -5,5 +5,8 @@ package wendu.dsbridge;
  */
 
 public interface CallbackHandler {
-    void execute();
+    /**
+     * this callback to trigger when javascript has successfully finish initialized bridging.
+     */
+    void onJsChannelReady();
 }

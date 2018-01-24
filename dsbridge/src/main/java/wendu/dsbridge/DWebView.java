@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.Keep;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AlertDialog;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -34,13 +35,12 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,6 +82,7 @@ public class DWebView extends WebView {
             }
         }
     }
+
     class RequestInfo {
         String url;
         Map<String, String> headers;
@@ -153,7 +154,7 @@ public class DWebView extends WebView {
                     }
 
                     if (method == null) {
-                        error = "ERROR! \n Not find method \"" + methodName + "\" implementation @chun! ";
+                        error = "ERROR! \n Not find method \"" + methodName + "\" implementation! ";
                         Log.e("SynWebView", error);
                         evaluateJavascript(String.format("alert(decodeURIComponent(\"%s\"})", error));
                         return "";
@@ -166,13 +167,13 @@ public class DWebView extends WebView {
                             final String cid = callbackId;
                             ret = method.invoke(jsb, arg, new CompletionHandler() {
                                 @Override
-                                public void complete(String retValue) {
+                                public void complete(@Nullable String retValue) {
                                     complete(retValue, true);
                                 }
 
                                 @Override
                                 public void complete() {
-                                    complete("", true);
+                                    complete("{}", true);
                                 }
 
                                 @Override
@@ -182,20 +183,18 @@ public class DWebView extends WebView {
 
                                 // FIXME currently, `retValue` should be a json string.
                                 // a better way is, make it a serializable object, and stringify it inside of `complete`, our developers should be glad to see it
-                                private void complete(String retValue, boolean complete) {
+                                private void complete(@Nullable String retValue, boolean complete) {
                                     try {
-                                        if (retValue == null) retValue = "";
-                                        // FIXME special process for no return value, we could make it more JAVA
-                                        if (retValue == "") {
-                                            JSONObject result = new JSONObject();
-                                            result.put("result", "");
-                                            retValue = result.toString();
+                                        if (retValue == null || !JsonUtil.isValidJSON(retValue)) {
+                                            JSONObject object = new JSONObject();
+                                            object.put("error", retValue == null ? "null string json" : "(" + retValue + ")" + " is not json valid json format");
+                                            retValue = object.toString();
                                         }
+
                                         String script = String.format(
                                                 "%s.invokeCallback && %s.invokeCallback(%s, %s, %s);",
                                                 BRIDGE_NAME, BRIDGE_NAME, cid, retValue, Boolean.toString(complete)
                                         );
-                                        Log.d("complete script", script);
                                         evaluateJavascript(script);
                                     } catch (Exception e) {
                                         e.printStackTrace();
@@ -216,7 +215,15 @@ public class DWebView extends WebView {
                         Log.e("SynWebView", error);
                     }
                 } catch (Exception e) {
-                    evaluateJavascript(String.format("alert('ERROR! \\nCall failed：Function does not exist or parameter is invalid［%s］')", e.getMessage()));
+                    JSONObject errObject = new JSONObject();
+                    try {
+                        errObject.put("message", e.getMessage());
+                        errObject.put("method", methodName);
+                        errObject.put("args", args);
+                    } catch (JSONException ee) {
+                        ee.printStackTrace();
+                    }
+                    evaluateJavascript(String.format("%s.invokeErrorHandlers && %s.invokeErrorHandlers(%s)", BRIDGE_NAME, BRIDGE_NAME, errObject.toString()));
                     e.printStackTrace();
                 }
                 return "";
@@ -236,7 +243,7 @@ public class DWebView extends WebView {
             @JavascriptInterface
             public void init() {
                 if (javascriptBridgeInitedListener != null) {
-                    javascriptBridgeInitedListener.execute();
+                    javascriptBridgeInitedListener.onJsChannelReady();
                 }
             }
         }, BRIDGE_NAME);
