@@ -121,6 +121,7 @@ public class DWebView extends WebView {
         settings.setLoadWithOverviewMode(true);
         settings.setSupportMultipleWindows(true);
         settings.setAppCachePath(APP_CACAHE_DIRNAME);
+        settings.setMediaPlaybackRequiresUserGesture(false);
         if (Build.VERSION.SDK_INT >= 21) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
@@ -181,8 +182,7 @@ public class DWebView extends WebView {
                                     complete(value, false);
                                 }
 
-                                // FIXME currently, `retValue` should be a json string.
-                                // a better way is, make it a serializable object, and stringify it inside of `complete`, our developers should be glad to see it
+                                // NOTE `retValue` should be a json string
                                 private void complete(@Nullable String retValue, boolean complete) {
                                     try {
                                         if (retValue == null || !JsonUtil.isValidJSON(retValue)) {
@@ -576,7 +576,6 @@ public class DWebView extends WebView {
     };
 
     private void _evaluateJavascript(String script) {
-        // FIXME @allen do we need to support legacy Android versions under KITKAT?
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             DWebView.super.evaluateJavascript(script, null);
         } else {
