@@ -151,6 +151,7 @@ public class DWebView extends WebView {
                                 new Class[]{JSONObject.class, CompletionHandler.class});
                         asyn = true;
                     } catch (Exception e) {
+                        Log.d("===method name", methodName);
                         method = cls.getDeclaredMethod(methodName, new Class[]{JSONObject.class});
                     }
 
@@ -203,6 +204,10 @@ public class DWebView extends WebView {
                             });
                         } else {
                             ret = method.invoke(jsb, arg);
+                            if (ret != null) {
+                                // wrap the result to a json object in order to safely pass it to js
+                                ret = new JSONObject().put("result", ret);
+                            }
                         }
                         if (ret == null) {
                             ret = "";
@@ -576,6 +581,7 @@ public class DWebView extends WebView {
     };
 
     private void _evaluateJavascript(String script) {
+        Log.d("_evaluateJavascript", script);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             DWebView.super.evaluateJavascript(script, null);
         } else {
@@ -651,19 +657,18 @@ public class DWebView extends WebView {
         mainThreadHandler.sendMessage(msg);
     }
 
-    public void callHandler(String method, Object[] args) {
+    public void callHandler(String method, JSONObject args) {
         callHandler(method, args, null);
     }
 
-    public void callHandler(String method, Object[] args, final OnReturnValue handler) {
-        if (args == null) args = new Object[0];
-        String argsString = new JSONArray(Arrays.asList(args)).toString();
+    public void callHandler(String method, JSONObject args, final OnReturnValue handler) {
+        if (args == null) args = new JSONObject();
         String callIDString = "";
         if (handler != null) {
             callIDString = Integer.toString(callID);
             handlerMap.put(callID++, handler);
         }
-        String script = String.format("(%s.invokeHandler && %s.invokeHandler(\"%s\", %s, %s))", BRIDGE_NAME, BRIDGE_NAME, method, argsString, callIDString);
+        String script = String.format("(%s.invokeHandler && %s.invokeHandler(\"%s\", %s, %s))", BRIDGE_NAME, BRIDGE_NAME, method, args.toString(), callIDString);
         evaluateJavascript(script);
     }
 
