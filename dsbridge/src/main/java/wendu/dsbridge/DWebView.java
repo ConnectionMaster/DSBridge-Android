@@ -141,7 +141,7 @@ public class DWebView extends WebView {
                 Class<?> cls = jsb.getClass();
                 try {
                     Method method;
-                    boolean asyn = false;
+                    boolean async = false;
                     JSONObject arg = new JSONObject(args);
                     String callbackId = "";
                     try {
@@ -149,9 +149,8 @@ public class DWebView extends WebView {
                         arg.remove("_callbackId");
                         method = cls.getDeclaredMethod(methodName,
                                 new Class[]{JSONObject.class, CompletionHandler.class});
-                        asyn = true;
+                        async = true;
                     } catch (Exception e) {
-                        Log.d("===method name", methodName);
                         method = cls.getDeclaredMethod(methodName, new Class[]{JSONObject.class});
                     }
 
@@ -165,36 +164,33 @@ public class DWebView extends WebView {
                     if (annotation != null) {
                         Object ret;
                         method.setAccessible(true);
-                        if (asyn) {
+                        if (async) {
                             final String cid = callbackId;
                             ret = method.invoke(jsb, arg, new CompletionHandler() {
                                 @Override
-                                public void complete(@Nullable String retValue) {
+                                public void complete(@Nullable JSONObject retValue) {
                                     complete(retValue, true);
                                 }
 
                                 @Override
                                 public void complete() {
-                                    complete("{}", true);
+                                    complete(null, true);
                                 }
 
                                 @Override
-                                public void setProgressData(String value) {
+                                public void setProgressData(JSONObject value) {
                                     complete(value, false);
                                 }
 
-                                // NOTE `retValue` should be a json string
-                                private void complete(@Nullable String retValue, boolean complete) {
+                                // NOTE `value` should be a json object with `result` property when succeed, or `error` when fail
+                                private void complete(@Nullable JSONObject value, boolean complete) {
                                     try {
-                                        if (retValue == null || !JsonUtil.isValidJSON(retValue)) {
-                                            JSONObject object = new JSONObject();
-                                            object.put("error", retValue == null ? "null string json" : "(" + retValue + ")" + " is not json valid json format");
-                                            retValue = object.toString();
+                                        if (value == null) {
+                                            value = new JSONObject();
                                         }
-
                                         String script = String.format(
                                                 "%s.invokeCallback && %s.invokeCallback(%s, %s, %s);",
-                                                BRIDGE_NAME, BRIDGE_NAME, cid, retValue, Boolean.toString(complete)
+                                                BRIDGE_NAME, BRIDGE_NAME, cid, value.toString(), Boolean.toString(complete)
                                         );
                                         evaluateJavascript(script);
                                     } catch (Exception e) {
@@ -203,11 +199,8 @@ public class DWebView extends WebView {
                                 }
                             });
                         } else {
-                            ret = method.invoke(jsb, arg);
-                            if (ret != null) {
-                                // wrap the result to a json object in order to safely pass it to js
-                                ret = new JSONObject().put("result", ret);
-                            }
+                            // `ret` should be a json object with `result` property when succeed, or `error` when fail
+                            ret = (JSONObject) method.invoke(jsb, arg);
                         }
                         if (ret == null) {
                             ret = "";
