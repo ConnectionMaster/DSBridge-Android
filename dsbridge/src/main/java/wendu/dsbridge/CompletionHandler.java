@@ -7,7 +7,7 @@ import org.json.JSONObject;
  */
 
 public interface  CompletionHandler {
-    void complete(JSONObject value);
+    void complete(String value);
     void complete();
-    void setProgressData(JSONObject value);
+    void setProgressData(String value);
 }

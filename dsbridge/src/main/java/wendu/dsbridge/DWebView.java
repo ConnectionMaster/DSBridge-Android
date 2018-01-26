@@ -168,7 +168,7 @@ public class DWebView extends WebView {
                             final String cid = callbackId;
                             ret = method.invoke(jsb, arg, new CompletionHandler() {
                                 @Override
-                                public void complete(@Nullable JSONObject retValue) {
+                                public void complete(@Nullable String retValue) {
                                     complete(retValue, true);
                                 }
 
@@ -178,19 +178,21 @@ public class DWebView extends WebView {
                                 }
 
                                 @Override
-                                public void setProgressData(JSONObject value) {
+                                public void setProgressData(String value) {
                                     complete(value, false);
                                 }
 
-                                // NOTE `value` should be a json object with `result` property when succeed, or `error` when fail
-                                private void complete(@Nullable JSONObject value, boolean complete) {
+                                // NOTE `value` should be a json object string with `result` property when succeed, or `error` when fail
+                                private void complete(@Nullable String value, boolean complete) {
                                     try {
-                                        if (value == null) {
-                                            value = new JSONObject();
+                                        if (value == null || !JsonUtil.isValidJSON(value)) {
+                                            JSONObject object = new JSONObject();
+                                            object.put("error", value == null ? "null string json" : "(" + value + ")" + " is not json valid json format");
+                                            value = object.toString();
                                         }
                                         String script = String.format(
                                                 "%s.invokeCallback && %s.invokeCallback(%s, %s, %s);",
-                                                BRIDGE_NAME, BRIDGE_NAME, cid, value.toString(), Boolean.toString(complete)
+                                                BRIDGE_NAME, BRIDGE_NAME, cid, value, Boolean.toString(complete)
                                         );
                                         evaluateJavascript(script);
                                     } catch (Exception e) {
@@ -199,8 +201,8 @@ public class DWebView extends WebView {
                                 }
                             });
                         } else {
-                            // `ret` should be a json object with `result` property when succeed, or `error` when fail
-                            ret = (JSONObject) method.invoke(jsb, arg);
+                            // `ret` should be a json object string with `result` property when succeed, or `error` when fail
+                            ret = method.invoke(jsb, arg);
                         }
                         if (ret == null) {
                             ret = "";
@@ -574,7 +576,6 @@ public class DWebView extends WebView {
     };
 
     private void _evaluateJavascript(String script) {
-        Log.d("_evaluateJavascript", script);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             DWebView.super.evaluateJavascript(script, null);
         } else {
