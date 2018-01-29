@@ -7,7 +7,14 @@
     tools:context="wendu.jsbdemo.MainActivity">
 <wendu.dsbridge.DWebView
     android:id="@+id/webview"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_centerHorizontal="true"
+    android:layout_centerVertical="true"
+    android:layout_width="300dp"
+    android:layout_height="300dp"
     />
+
+    <FrameLayout
+        android:id="@+id/fullscreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
 </RelativeLayout>
