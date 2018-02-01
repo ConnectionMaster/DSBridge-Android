@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.Keep;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AlertDialog;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -34,13 +35,12 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,6 +53,7 @@ import java.util.Map;
 public class DWebView extends WebView {
     private static final String BRIDGE_NAME = "_dsbridge";
     private Object jsb;
+    private CallbackHandler javascriptBridgeInitedListener;
     private String APP_CACAHE_DIRNAME;
     int callID = 0;
     private static final int EXEC_SCRIPT=1;
@@ -64,7 +65,7 @@ public class DWebView extends WebView {
         //  Using WeakReference to avoid memory leak
         WeakReference<Activity> mActivityReference;
         MyHandler(Activity activity) {
-            mActivityReference= new WeakReference<>(activity);
+            mActivityReference = new WeakReference<>(activity);
         }
         @Override
         public void handleMessage(Message msg) {
@@ -81,6 +82,7 @@ public class DWebView extends WebView {
             }
         }
     }
+
     class RequestInfo {
         String url;
         Map<String, String> headers;
@@ -119,6 +121,7 @@ public class DWebView extends WebView {
         settings.setLoadWithOverviewMode(true);
         settings.setSupportMultipleWindows(true);
         settings.setAppCachePath(APP_CACAHE_DIRNAME);
+        settings.setMediaPlaybackRequiresUserGesture(false);
         if (Build.VERSION.SDK_INT >= 21) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
@@ -127,7 +130,7 @@ public class DWebView extends WebView {
         super.addJavascriptInterface(new Object() {
             @Keep
             @JavascriptInterface
-            public String call(String methodName, String args) {
+            public String callHandler(String methodName, String args) {
                 String error = "Js bridge method called, but there is " +
                         "not a JavascriptInterface object, please set JavascriptInterface object first!";
                 if (jsb == null) {
@@ -138,15 +141,15 @@ public class DWebView extends WebView {
                 Class<?> cls = jsb.getClass();
                 try {
                     Method method;
-                    boolean asyn = false;
+                    boolean async = false;
                     JSONObject arg = new JSONObject(args);
-                    String callback = "";
+                    String callbackId = "";
                     try {
-                        callback = arg.getString("_dscbstub");
-                        arg.remove("_dscbstub");
+                        callbackId = arg.getString("_callbackId");
+                        arg.remove("_callbackId");
                         method = cls.getDeclaredMethod(methodName,
                                 new Class[]{JSONObject.class, CompletionHandler.class});
-                        asyn = true;
+                        async = true;
                     } catch (Exception e) {
                         method = cls.getDeclaredMethod(methodName, new Class[]{JSONObject.class});
                     }
@@ -161,40 +164,44 @@ public class DWebView extends WebView {
                     if (annotation != null) {
                         Object ret;
                         method.setAccessible(true);
-                        if (asyn) {
-                            final String cb = callback;
+                        if (async) {
+                            final String cid = callbackId;
                             ret = method.invoke(jsb, arg, new CompletionHandler() {
-
                                 @Override
-                                public void complete(String retValue) {
-                                   complete(retValue,true);
+                                public void complete(@Nullable String retValue) {
+                                    complete(retValue, true);
                                 }
 
                                 @Override
                                 public void complete() {
-                                    complete("",true);
+                                    complete(null, true);
                                 }
 
                                 @Override
                                 public void setProgressData(String value) {
-                                  complete(value,false);
+                                    complete(value, false);
                                 }
 
-                                private void complete(String retValue,boolean complete) {
+                                // NOTE `value` should be a json object string with `result` property when succeed, or `error` when fail
+                                private void complete(@Nullable String value, boolean complete) {
                                     try {
-                                        if (retValue == null) retValue = "";
-                                        retValue = URLEncoder.encode(retValue, "UTF-8").replaceAll("\\+", "%20");
-                                        String script = String.format("%s(decodeURIComponent(\"%s\"));", cb, retValue);
-                                        if(complete) {
-                                            script += "delete window."+cb;
+                                        if (value == null || !JsonUtil.isValidJSON(value)) {
+                                            JSONObject object = new JSONObject();
+                                            object.put("error", value == null ? "null string json" : "(" + value + ")" + " is not json valid json format");
+                                            value = object.toString();
                                         }
+                                        String script = String.format(
+                                                "%s.invokeCallback && %s.invokeCallback(%s, %s, %s);",
+                                                BRIDGE_NAME, BRIDGE_NAME, cid, value, Boolean.toString(complete)
+                                        );
                                         evaluateJavascript(script);
-                                    } catch (UnsupportedEncodingException e) {
+                                    } catch (Exception e) {
                                         e.printStackTrace();
                                     }
                                 }
                             });
                         } else {
+                            // `ret` should be a json object string with `result` property when succeed, or `error` when fail
                             ret = method.invoke(jsb, arg);
                         }
                         if (ret == null) {
@@ -208,11 +215,20 @@ public class DWebView extends WebView {
                         Log.e("SynWebView", error);
                     }
                 } catch (Exception e) {
-                    evaluateJavascript(String.format("alert('ERROR! \\nCall failed：Function does not exist or parameter is invalid［%s］')", e.getMessage()));
+                    JSONObject errObject = new JSONObject();
+                    try {
+                        errObject.put("message", e.getMessage());
+                        errObject.put("method", methodName);
+                        errObject.put("args", args);
+                    } catch (JSONException ee) {
+                        ee.printStackTrace();
+                    }
+                    evaluateJavascript(String.format("%s.invokeErrorHandlers && %s.invokeErrorHandlers(%s)", BRIDGE_NAME, BRIDGE_NAME, errObject.toString()));
                     e.printStackTrace();
                 }
                 return "";
             }
+
             @Keep
             @JavascriptInterface
             public void returnValue(int id, String value) {
@@ -220,6 +236,14 @@ public class DWebView extends WebView {
                 if (handler != null) {
                     handler.onValue(value);
                     handlerMap.remove(id);
+                }
+            }
+
+            @Keep
+            @JavascriptInterface
+            public void init() {
+                if (javascriptBridgeInitedListener != null) {
+                    javascriptBridgeInitedListener.onJsChannelReady();
                 }
             }
         }, BRIDGE_NAME);
@@ -237,7 +261,6 @@ public class DWebView extends WebView {
 
         @Override
         public void onProgressChanged(WebView view, int newProgress) {
-            injectJs();
             if (webChromeClient != null) {
                 webChromeClient.onProgressChanged(view, newProgress);
             } else {
@@ -247,7 +270,6 @@ public class DWebView extends WebView {
 
         @Override
         public void onReceivedTitle(WebView view, String title) {
-            injectJs();
             if (webChromeClient != null) {
                 webChromeClient.onReceivedTitle(view, title);
             } else {
@@ -327,7 +349,9 @@ public class DWebView extends WebView {
             } else {
                 super.onCloseWindow(window);
             }
-        }    @Override
+        }
+
+        @Override
         public boolean onJsAlert(WebView view, String url, final String message, final JsResult result) {
             if (webChromeClient != null) {
                 if (webChromeClient.onJsAlert(view, url, message, result)) {
@@ -379,13 +403,13 @@ public class DWebView extends WebView {
         @Override
         public boolean onJsPrompt(WebView view, String url, final String message,
                                   String defaultValue, final JsPromptResult result) {
-            super.onJsPrompt(view,url,message,defaultValue,result);
+            super.onJsPrompt(view, url, message, defaultValue, result);
             if (webChromeClient != null && webChromeClient.onJsPrompt(view, url, message, defaultValue, result)) {
                 return true;
             } else {
                 final EditText editText = new EditText(getContext());
                 editText.setText(defaultValue);
-                if (defaultValue!=null){
+                if (defaultValue != null){
                     editText.setSelection(defaultValue.length());
                 }
                 float dpi = getContext().getResources().getDisplayMetrics().density;
@@ -517,7 +541,6 @@ public class DWebView extends WebView {
 
         @Override
         public Bitmap getDefaultVideoPoster() {
-
             if (webChromeClient != null) {
                 return webChromeClient.getDefaultVideoPoster();
             }
@@ -551,9 +574,6 @@ public class DWebView extends WebView {
             return super.onShowFileChooser(webView, filePathCallback, fileChooserParams);
         }
     };
-    private void injectJs() {
-        evaluateJavascript("function getJsBridge(){window._dsf=window._dsf||{};return{call:function(b,a,c){\"function\"==typeof a&&(c=a,a={});if(\"function\"==typeof c){window.dscb=window.dscb||0;var d=\"dscb\"+window.dscb++;window[d]=c;a._dscbstub=d}a=JSON.stringify(a||{});return window._dswk?prompt(window._dswk+b,a):\"function\"==typeof _dsbridge?_dsbridge(b,a):_dsbridge.call(b,a)},register:function(b,a){\"object\"==typeof b?Object.assign(window._dsf,b):window._dsf[b]=a}}}dsBridge=getJsBridge();");
-    }
 
     private void _evaluateJavascript(String script) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -567,9 +587,9 @@ public class DWebView extends WebView {
         if (Looper.getMainLooper() == Looper.myLooper()) {
             _evaluateJavascript(script);
         } else {
-            Message msg=new Message();
-            msg.what=EXEC_SCRIPT;
-            msg.obj=script;
+            Message msg = new Message();
+            msg.what = EXEC_SCRIPT;
+            msg.obj = script;
             mainThreadHandler.sendMessage(msg);
         }
     }
@@ -616,40 +636,42 @@ public class DWebView extends WebView {
     }
 
     @Override
-    public void loadUrl( String url) {
-        Message msg=new Message();
-        msg.what=LOAD_URL;
-        msg.obj=url;
+    public void loadUrl(String url) {
+        Message msg = new Message();
+        msg.what = LOAD_URL;
+        msg.obj = url;
         mainThreadHandler.sendMessage(msg);
     }
-
-    public void callHandler(String method, Object[] args) {
-      callHandler(method,args,null);
-    }
-
-    public void callHandler(String method, Object[] args, final OnReturnValue handler) {
-        if (args == null) args = new Object[0];
-        String arg = new JSONArray(Arrays.asList(args)).toString();
-        String script = String.format("(window._dsf.%s||window.%s).apply(window._dsf||window,%s)", method,method, arg);
-        if(handler!=null){
-            script = String.format("%s.returnValue(%d,%s)",BRIDGE_NAME,callID, script);
-            handlerMap.put(callID++, handler);
-        }
-        evaluateJavascript(script);
-
-    }
-
-
 
     @Override
     public void loadUrl(String url, Map<String, String> additionalHttpHeaders) {
-        Message msg=new Message();
-        msg.what=LOAD_URL_WITH_HEADERS;
-        msg.obj=new RequestInfo(url,additionalHttpHeaders);
+        Message msg = new Message();
+        msg.what = LOAD_URL_WITH_HEADERS;
+        msg.obj = new RequestInfo(url, additionalHttpHeaders);
         mainThreadHandler.sendMessage(msg);
+    }
+
+    public void callHandler(String method, JSONObject args) {
+        callHandler(method, args, null);
+    }
+
+    public void callHandler(String method, JSONObject args, final OnReturnValue handler) {
+        if (args == null) args = new JSONObject();
+        String callIDString = "";
+        if (handler != null) {
+            callIDString = Integer.toString(callID);
+            handlerMap.put(callID++, handler);
+        }
+        String script = String.format("(%s.invokeHandler && %s.invokeHandler(\"%s\", %s, %s))", BRIDGE_NAME, BRIDGE_NAME, method, args.toString(), callIDString);
+        evaluateJavascript(script);
     }
 
     public void setJavascriptInterface(Object object) {
         jsb = object;
+    }
+
+
+    public void setJavascriptBridgeInitedListener(final CallbackHandler handler) {
+        javascriptBridgeInitedListener = handler;
     }
 }
