@@ -12,6 +12,16 @@ import static org.junit.Assert.assertTrue;
  */
 public class JsonUtilTest {
     @Test
+    public void buildErrorMessage() throws Exception {
+
+        final String message = "asdfsadfasd      fdsadf       sdf-2312234-~!!M      fsadf";
+
+        JSONObject jsonObject = JsonUtil.buildErrorMessage(message);
+
+        assertTrue(jsonObject.get("error").toString().equalsIgnoreCase(message));
+    }
+
+    @Test
     public void isValidJSON() throws Exception {
         boolean result = JsonUtil.isValidJSON(null);
         assertFalse(result);

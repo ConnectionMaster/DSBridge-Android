@@ -34,7 +34,6 @@ import android.webkit.WebView;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -58,6 +57,7 @@ public class DWebView extends WebView {
     private static final int LOAD_URL=2;
     private static final int LOAD_URL_WITH_HEADERS=3;
     MyHandler mainThreadHandler=null;
+    private static final String SUCCESS = "success";
 
     class MyHandler extends Handler {
         //  Using WeakReference to avoid memory leak
@@ -155,10 +155,8 @@ public class DWebView extends WebView {
                     }
 
                     if (method == null) {
-                        error = "ERROR! \n Not find method \"" + methodName + "\" implementation! ";
                         Log.e("SynWebView", error);
-                        evaluateJavascript(String.format("alert(decodeURIComponent(\"%s\"})", error));
-                        return "";
+                        return JsonUtil.buildErrorMessage("ERROR! \n Not find method \"" + methodName + "\" implementation! ").toString();
                     }
 
                         Object ret;
@@ -183,43 +181,53 @@ public class DWebView extends WebView {
 
                                 // NOTE `value` should be a json object string with `result` property when succeed, or `error` when fail
                                 private void complete(@Nullable String value, boolean complete) {
-                                    try {
-                                        if (value == null || !JsonUtil.isValidJSON(value)) {
-                                            JSONObject object = new JSONObject();
-                                            object.put("error", value == null ? "null string json" : "(" + value + ")" + " is not json valid json format");
-                                            value = object.toString();
-                                        }
-                                        String script = String.format(
-                                                "%s.invokeCallback && %s.invokeCallback(%s, %s, %s);",
-                                                BRIDGE_NAME, BRIDGE_NAME, cid, value, Boolean.toString(complete)
-                                        );
-                                        evaluateJavascript(script);
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
+
+                                    if (value == null || !JsonUtil.isValidJSON(value)) {
+                                        JSONObject objectMessage = JsonUtil.buildErrorMessage(value == null ? "null string json" : "(" + value + ")" + " is not json valid json format");
+                                        value = objectMessage.toString();
                                     }
+                                    String script = String.format(
+                                            "%s.invokeCallback && %s.invokeCallback(%s, %s, %s);",
+                                            BRIDGE_NAME, BRIDGE_NAME, cid, value, Boolean.toString(complete)
+                                    );
+                                    evaluateJavascript(script);
                                 }
                             });
+                            return SUCCESS;
                         } else {
                             // `ret` should be a json object string with `result` property when succeed, or `error` when fail
                             ret = method.invoke(jsb, arg);
+
+                            if (ret != null && JsonUtil.isValidJSON(ret.toString())) {
+                                return ret.toString();
+                            }else{
+                                return JsonUtil.buildErrorMessage("sync call returns non json object").toString();
+                            }
                         }
-                        if (ret == null) {
-                            ret = "";
-                        }
-                        return ret.toString();
+
                 } catch (Exception e) {
-                    JSONObject errObject = new JSONObject();
-                    try {
-                        errObject.put("message", e.getMessage());
-                        errObject.put("method", methodName);
-                        errObject.put("args", args);
-                    } catch (JSONException ee) {
-                        ee.printStackTrace();
+
+                    StringBuilder builder = new StringBuilder();
+
+                    if (methodName != null) {
+                        builder.append("method: " + methodName);
                     }
+
+                    if (args != null) {
+                        builder.append(" arg: " + args);
+                    }
+
+                    if (e != null) {
+                        builder.append(" message: " + e.getMessage());
+                    }
+
+                    JSONObject errObject = JsonUtil.buildErrorMessage(builder.toString());
+
                     evaluateJavascript(String.format("%s.invokeErrorHandlers && %s.invokeErrorHandlers(%s)", BRIDGE_NAME, BRIDGE_NAME, errObject.toString()));
                     e.printStackTrace();
+
+                    return errObject.toString();
                 }
-                return "";
             }
 
             @Keep
