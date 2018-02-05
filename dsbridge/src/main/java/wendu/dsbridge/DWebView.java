@@ -34,14 +34,12 @@ import android.webkit.WebView;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -121,7 +119,9 @@ public class DWebView extends WebView {
         settings.setLoadWithOverviewMode(true);
         settings.setSupportMultipleWindows(true);
         settings.setAppCachePath(APP_CACAHE_DIRNAME);
-        settings.setMediaPlaybackRequiresUserGesture(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            settings.setMediaPlaybackRequiresUserGesture(false);
+        }
         if (Build.VERSION.SDK_INT >= 21) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
@@ -160,8 +160,7 @@ public class DWebView extends WebView {
                         evaluateJavascript(String.format("alert(decodeURIComponent(\"%s\"})", error));
                         return "";
                     }
-                    JavascriptInterface annotation = method.getAnnotation(JavascriptInterface.class);
-                    if (annotation != null) {
+
                         Object ret;
                         method.setAccessible(true);
                         if (async) {
@@ -208,12 +207,6 @@ public class DWebView extends WebView {
                             ret = "";
                         }
                         return ret.toString();
-                    } else {
-                        error = "Method " + methodName + " is not invoked, since  " +
-                                "it is not declared with JavascriptInterface annotation! ";
-                        evaluateJavascript(String.format("alert('ERROR \\n%s')", error));
-                        Log.e("SynWebView", error);
-                    }
                 } catch (Exception e) {
                     JSONObject errObject = new JSONObject();
                     try {
