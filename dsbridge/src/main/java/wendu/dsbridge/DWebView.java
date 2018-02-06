@@ -193,7 +193,7 @@ public class DWebView extends WebView {
                                     evaluateJavascript(script);
                                 }
                             });
-                            return SUCCESS;
+                            return JsonUtil.buildSuccessMessage(SUCCESS).toString();
                         } else {
                             // `ret` should be a json object string with `result` property when succeed, or `error` when fail
                             ret = method.invoke(jsb, arg);

@@ -13,6 +13,7 @@ import org.json.JSONObject;
 public class JsonUtil {
 
     private static final String ERROR = "error";
+    private static final String RESULT = "result";
 
     public static boolean isValidJSON(@Nullable String toTestStr) {
         if (toTestStr == null) {
@@ -31,11 +32,11 @@ public class JsonUtil {
         return true;
     }
 
-    public static JSONObject buildErrorMessage(String message) {
+    private static JSONObject buildJsonObject(String key, Object value) {
         JSONObject jsonObject = new JSONObject();
 
         try {
-            jsonObject.put(ERROR, message);
+            jsonObject.put(key, value);
         } catch (JSONException e) {
             e.printStackTrace();
             try {
@@ -45,5 +46,13 @@ public class JsonUtil {
             }
         }
         return jsonObject;
+    }
+
+    public static JSONObject buildErrorMessage(String msg) {
+        return buildJsonObject(ERROR, msg);
+    }
+
+    public static JSONObject buildSuccessMessage(String msg){
+        return buildJsonObject(RESULT, msg);
     }
 }
