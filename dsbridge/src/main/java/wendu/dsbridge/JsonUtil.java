@@ -12,8 +12,11 @@ import org.json.JSONObject;
  */
 public class JsonUtil {
 
+    private static final String ERROR = "error";
+    private static final String RESULT = "result";
+
     public static boolean isValidJSON(@Nullable String toTestStr) {
-        if(toTestStr==null){
+        if (toTestStr == null) {
             return false;
         }
 
@@ -27,5 +30,29 @@ public class JsonUtil {
             }
         }
         return true;
+    }
+
+    private static JSONObject buildJsonObject(String key, Object value) {
+        JSONObject jsonObject = new JSONObject();
+
+        try {
+            jsonObject.put(key, value);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            try {
+                jsonObject.put(ERROR, e.getMessage());
+            } catch (JSONException e1) {
+                e1.printStackTrace();
+            }
+        }
+        return jsonObject;
+    }
+
+    public static JSONObject buildErrorMessage(String msg) {
+        return buildJsonObject(ERROR, msg);
+    }
+
+    public static JSONObject buildSuccessMessage(String msg){
+        return buildJsonObject(RESULT, msg);
     }
 }
