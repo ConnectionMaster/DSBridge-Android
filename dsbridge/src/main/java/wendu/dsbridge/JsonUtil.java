@@ -1,5 +1,6 @@
 package wendu.dsbridge;
 
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import org.json.JSONArray;
@@ -48,11 +49,15 @@ public class JsonUtil {
         return jsonObject;
     }
 
-    public static JSONObject buildErrorMessage(String msg) {
+    public static JSONObject buildErrorMessage(@NonNull String msg) {
         return buildJsonObject(ERROR, msg);
     }
 
-    public static JSONObject buildSuccessMessage(String msg){
+    public static JSONObject buildSuccessMessage(@NonNull String msg){
         return buildJsonObject(RESULT, msg);
+    }
+
+    public static JSONObject buildResultObject(@NonNull JSONObject jsonObject) {
+        return buildJsonObject(RESULT,jsonObject);
     }
 }

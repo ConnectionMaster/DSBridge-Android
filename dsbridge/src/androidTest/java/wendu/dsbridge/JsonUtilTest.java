@@ -1,7 +1,12 @@
 package wendu.dsbridge;
 
+import android.util.Log;
+
 import org.json.JSONObject;
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -11,6 +16,34 @@ import static org.junit.Assert.assertTrue;
  * on Tubitv.com, allengotstuff@gmail.com
  */
 public class JsonUtilTest {
+    @Test
+    public void buildResultObject() throws Exception {
+        final String PLATFORM = "platform";
+        final String VERSION = "version";
+        final String USER_ID = "user_id";
+
+        String platform = "2.12.9";
+        String version = "1123";
+        double userId = 32432498234d;
+
+        Map<String, Object> inputMap = new HashMap<>();
+        inputMap.put(PLATFORM,platform);
+        inputMap.put(VERSION, version);
+        inputMap.put(USER_ID, userId);
+
+
+        JSONObject jsonObject = JsonUtil.buildResultObject(new JSONObject(inputMap));
+
+        JSONObject resultOb = (JSONObject)jsonObject.get("result");
+
+        assertTrue(resultOb.get(PLATFORM).toString() == platform);
+        assertTrue(resultOb.get(VERSION).toString() == version);
+        assertTrue((double)resultOb.get(USER_ID) == userId);
+
+
+        Log.d("buildResultObject", jsonObject.toString());
+    }
+
     @Test
     public void buildSuccessMessage() throws Exception {
 
